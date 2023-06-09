@@ -3,37 +3,34 @@ import rasterio as rio
 import pathlib 
 import re
 import shutil
+from src.utils import list_files
+
 s2pixbox = pathlib.Path("data/raw/Sentinel-2_L1C/")
 output = pathlib.Path("data/output/s2_pixbox/")
 
-for path in s2pixbox.glob("*/GRANULE/*/"):
-    print("Processing: ", path.stem)
+tci_files = list_files(s2pixbox, pattern=r".*_TCI\.jp2$", full_names=True, recursive=True)
+
+for file in tci_files:
+    file = pathlib.Path(file)
+    print("Processing: ", file.stem)
+    
     # creating output folder
-    outputfolder = (output / path.stem)
+    outputfolder = (output / file.stem)
     outputfolder.mkdir(parents=True, exist_ok=True) 
 
     # copy band TCI carpet using pathlib
-    regex_compile = re.compile(r".*_TCI\.jp2$")
-    
-    # iterate over all subfolders
-    for sub_folder in s2pixbox.glob('**/'):
-    
-        # Find matching files and copy TCI band using pathlib
-         for file_path in sub_folder.glob('*'):
-            if regex_compile.search(str(file_path)):
-                print(f'Archivo encontrado: {file_path}')
-                shutil.copy(file_path, outputfolder)
+    shutil.copy(file, outputfolder)
+            
 
 # convertion table to geopackage
 import geopandas as gpd
 import pandas as pd
 
 dataset = pd.read_csv("data/raw/PixBox-S2-CMIX/pixbox_sentinel2_cmix_20180425.csv")
-dataset2 = dataset["LATITUDE", "LONGITUDE", "SURFACE_ID", "SHADOW_ID"]
-
+dataset2 = dataset[["LATITUDE", "LONGITUDE", "SHADOW_ID", "SURFACE_ID"]]
+dataset.keys()
 # convert to dataframe to geopandas
 gdf = gpd.GeoDataFrame(dataset2, geometry=gpd.points_from_xy(dataset2.LONGITUDE, dataset2.LATITUDE))
 gdf.crs = "EPSG:4326"
-
 # write to file geojson
 gdf.to_file("data/output/s2_pixbox/pixbox_sentinel2_cmix_20180425.shp")
